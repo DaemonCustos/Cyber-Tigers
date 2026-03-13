@@ -1,0 +1,278 @@
+# =====================================================================
+#  NCAE ROUTER ROLE PACK — MIKROTIK ROUTEROS (READ‑ONLY)
+#  Reference Markers: ROUTER-AUDIT-* + Command Book References
+# =====================================================================
+
+:put "=== ROUTER-AUDIT-START ==="
+:local hostname [/system identity get name]
+:local ts ([:pick [/system clock get date] 0 10] . "_" . [:pick [/system clock get time] 0 8])
+:put ("Host: " . $hostname)
+:put ("Timestamp: " . $ts)
+:put ""
+
+# --- Color Flags ------------------------------------------------------
+:local RED "[RED]"
+:local ORANGE "[ORANGE]"
+:local GREEN "[GREEN]"
+
+# --- Prompt for TXT Export -------------------------------------------
+:put "Do you want to save this audit to a TXT file? (yes/no)"
+:local answer
+:local exportFile ("router-audit-" . $hostname . "-" . $ts . ".txt")
+
+:local done false
+:while ($done = false) do={
+    :set answer [/terminal inkey timeout=10]
+    :if ($answer = "y" || $answer = "Y" || $answer = "yes") do={
+        :put ("TXT export enabled → " . $exportFile)
+        :set done true
+    }
+    :if ($answer = "n" || $answer = "N" || $answer = "no") do={
+        :put "TXT export disabled."
+        :set exportFile ""
+        :set done true
+    }
+}
+
+# --- Logging Helper ---------------------------------------------------
+:global log do={
+    :put $1
+    :if ($exportFile != "") do={
+        /file print file=$exportFile where name=$exportFile
+        /file set $exportFile contents=(([/file get $exportFile contents]) . "\n" . $1)
+    }
+}
+
+# =====================================================================
+#  SYSTEM IDENTITY / RESOURCES / PACKAGES
+# =====================================================================
+$log ("--- System Identity (ROUTER-AUDIT-SYSINFO) ---")
+$log ("REF: P1-MT-IPADDR")
+/system identity print
+/system resource print
+/system package print
+/system routerboard print
+:put ""
+
+# =====================================================================
+#  CLOCK / TIME / NTP
+# =====================================================================
+$log ("--- Clock & Time (ROUTER-AUDIT-TIME) ---")
+$log ("REF: P1-MT-IPADDR")
+/system clock print
+
+$log ("--- NTP Client (ROUTER-AUDIT-NTP) ---")
+$log ("REF: P1-MT-IPADDR")
+/system ntp client print detail
+:put ""
+
+# =====================================================================
+#  INTERFACES / BRIDGES / VLANs / BONDING / WIRELESS
+# =====================================================================
+$log ("--- Interfaces (ROUTER-AUDIT-IFACE) ---")
+$log ("REF: P1-MT-IPADDR")
+/interface print detail
+
+$log ("--- Bridges (ROUTER-AUDIT-BRIDGE) ---")
+$log ("REF: P1-MT-BRIDGE")
+/interface bridge print detail
+
+$log ("--- VLANs (ROUTER-AUDIT-VLAN) ---")
+$log ("REF: P1-MT-VLAN")
+/interface vlan print detail
+
+$log ("--- Bonding (ROUTER-AUDIT-BOND) ---")
+$log ("REF: P2-MT-BRIDGE-COMPLETE")
+/interface bonding print detail
+
+$log ("--- Wireless (ROUTER-AUDIT-WIRELESS) ---")
+$log ("REF: P1-MT-IPADDR")
+/interface wireless print detail
+:put ""
+
+# =====================================================================
+#  IP ADDRESSES / DHCP / POOLS / ARP / NEIGHBORS
+# =====================================================================
+$log ("--- IP Addresses (ROUTER-AUDIT-IPADDR) ---")
+$log ("REF: P1-MT-IPADDR")
+/ip address print detail
+
+$log ("--- DHCP Server (ROUTER-AUDIT-DHCP) ---")
+$log ("REF: P1-MT-DHCP")
+/ip dhcp-server print detail
+
+$log ("--- DHCP Leases (ROUTER-AUDIT-DHCPLEASES) ---")
+$log ("REF: P2-MT-DHCP-COMPLETE")
+/ip dhcp-server lease print detail
+
+$log ("--- IP Pools (ROUTER-AUDIT-POOLS) ---")
+$log ("REF: P2-MT-DHCP-COMPLETE")
+/ip pool print detail
+
+$log ("--- ARP Table (ROUTER-AUDIT-ARP) ---")
+$log ("REF: P1-MT-IPADDR")
+/ip arp print detail
+
+$log ("--- Neighbors (ROUTER-AUDIT-NEIGHBOR) ---")
+$log ("REF: P2-MT-ROUTE-COMPLETE")
+/ip neighbor print detail
+:put ""
+
+# =====================================================================
+#  ROUTING / VRF / OSPF / BGP
+# =====================================================================
+$log ("--- IPv4 Routes (ROUTER-AUDIT-ROUTE4) ---")
+$log ("REF: P1-MT-ROUTE")
+/ip route print detail
+
+$log ("--- IPv6 Routes (ROUTER-AUDIT-ROUTE6) ---")
+$log ("REF: P1-MT-ROUTE")
+/ipv6 route print detail
+
+$log ("--- VRFs (ROUTER-AUDIT-VRF) ---")
+$log ("REF: P2-MT-ROUTE-COMPLETE")
+/routing vrf print detail
+
+$log ("--- OSPF (ROUTER-AUDIT-OSPF) ---")
+$log ("REF: P2-MT-ROUTE-COMPLETE")
+/routing ospf instance print detail
+/routing ospf interface print detail
+/routing ospf neighbor print detail
+
+$log ("--- BGP (ROUTER-AUDIT-BGP) ---")
+$log ("REF: P2-MT-ROUTE-COMPLETE")
+/routing bgp connection print detail
+/routing bgp peer print detail
+:put ""
+
+# =====================================================================
+#  FIREWALL / NAT / MANGLE / RAW / ADDRESS-LISTS
+# =====================================================================
+$log ("--- Firewall Filter Rules (ROUTER-AUDIT-FW-FILTER) ---")
+$log ("REF: P1-MT-FW-BASE")
+/ip firewall filter print detail
+
+$log ("--- Firewall NAT Rules (ROUTER-AUDIT-FW-NAT) ---")
+$log ("REF: P1-MT-NAT")
+/ip firewall nat print detail
+
+$log ("--- Firewall Mangle Rules (ROUTER-AUDIT-FW-MANGLE) ---")
+$log ("REF: P2-MT-FW-COMPLETE")
+/ip firewall mangle print detail
+
+$log ("--- Firewall Raw Rules (ROUTER-AUDIT-FW-RAW) ---")
+$log ("REF: P3-MT-FW-DROP")
+/ip firewall raw print detail
+
+$log ("--- Address Lists (ROUTER-AUDIT-ADDRLIST) ---")
+$log ("REF: P2-MT-FW-COMPLETE")
+/ip firewall address-list print detail
+:put ""
+
+# =====================================================================
+#  CONNECTION TRACKING / ACTIVE CONNECTIONS
+# =====================================================================
+$log ("--- Connection Tracking (ROUTER-AUDIT-CONNTRACK) ---")
+$log ("REF: P3-MT-FW-DROP")
+/ip firewall connection print detail
+
+$log ("--- Active Connections (ROUTER-AUDIT-ACTIVE) ---")
+$log ("REF: P3-MT-FW-DROP")
+/ip firewall connection print
+:put ""
+
+# =====================================================================
+#  SERVICES / PORT EXPOSURE
+# =====================================================================
+$log ("--- Enabled Services (ROUTER-AUDIT-SERVICES) ---")
+$log ("REF: P1-MT-SVC")
+/ip service print detail
+
+$log ("--- MAC Server / Winbox (ROUTER-AUDIT-WINBOX) ---")
+$log ("REF: P3-MT-SVC-HARDEN")
+/tool mac-server print
+/tool mac-server mac-winbox print
+
+$log ("--- API Services (ROUTER-AUDIT-API) ---")
+$log ("REF: P3-MT-SVC-HARDEN")
+/ip service print where name~"api"
+:put ""
+
+# =====================================================================
+#  LOGGING / SNMP
+# =====================================================================
+$log ("--- Logging Rules (ROUTER-AUDIT-LOGRULES) ---")
+$log ("REF: P2-MT-LOG-COMPLETE")
+/system logging print detail
+
+$log ("--- Recent Logs (ROUTER-AUDIT-LOGS) ---")
+$log ("REF: P3-MT-LOG-HARDEN")
+/log print
+
+$log ("--- SNMP (ROUTER-AUDIT-SNMP) ---")
+$log ("REF: P2-MT-SNMP-COMPLETE")
+/snmp print detail
+:put ""
+
+# =====================================================================
+#  QUEUES / QoS
+# =====================================================================
+$log ("--- Simple Queues (ROUTER-AUDIT-QUEUE-SIMPLE) ---")
+$log ("REF: P2-MT-QUEUE-COMPLETE")
+/queue simple print detail
+
+$log ("--- Queue Trees (ROUTER-AUDIT-QUEUE-TREE) ---")
+$log ("REF: P2-MT-QUEUE-COMPLETE")
+/queue tree print detail
+
+$log ("--- Queue Types (ROUTER-AUDIT-QUEUE-TYPE) ---")
+$log ("REF: P2-MT-QUEUE-COMPLETE")
+/queue type print detail
+:put ""
+
+# =====================================================================
+#  SCHEDULER / SCRIPTS / JOBS
+# =====================================================================
+$log ("--- Scheduler Tasks (ROUTER-AUDIT-SCHED) ---")
+$log ("REF: P3-MT-SCHED-HARDEN")
+/system scheduler print detail
+
+$log ("--- Scripts (ROUTER-AUDIT-SCRIPTS) ---")
+$log ("REF: P3-MT-SCHED-HARDEN")
+/system script print detail
+
+$log ("--- Active Jobs (ROUTER-AUDIT-JOBS) ---")
+$log ("REF: P3-MT-SCHED-HARDEN")
+/system script job print detail
+:put ""
+
+# =====================================================================
+#  SECURITY CHECKS (COLOR-FLAGGED)
+# =====================================================================
+$log ("--- Security Classification (ROUTER-AUDIT-CLASSIFY) ---")
+$log ("REF: P3-MT-FW-DROP")
+
+:if ([/ip service get telnet disabled] = false) do={
+    $log ($RED . " Telnet enabled")
+}
+
+:if ([/ip service get ftp disabled] = false) do={
+    $log ($ORANGE . " FTP enabled")
+}
+
+:if ([/ip service get ssh disabled] = false) do={
+    $log ($ORANGE . " SSH enabled — verify allowed-address")
+}
+
+:if ([/ip firewall filter print count-only] = 0) do={
+    $log ($RED . " No firewall filter rules present")
+}
+:put ""
+
+# =====================================================================
+#  FINALIZATION
+# =====================================================================
+:put "=== ROUTER-AUDIT-END ==="
+:if ($exportFile != "") do={
+    :put ("TXT file saved as: " . $exportFile)
+}
